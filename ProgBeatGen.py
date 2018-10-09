@@ -26,6 +26,7 @@
 # 4. Roep de juiste functie aan om de samples af te spelen met de juiste variabelen.
 # 5. Debugging
 # 5. Zorg voor een stop functie:
+<<<<<<< HEAD
 
 
 class userInput:
@@ -59,3 +60,7 @@ class userInput:
 p1 = userInput(120, "low.wav", "mid.wav", "high.wav", False, "5/8", "Export.midi")
 
 p1.debug()
+=======
+# 6. hoi
+print("JA JE MOEDERJONHUH")
+>>>>>>> 7823367012ab06c285bd0732a5f2f7e7116d2f51
