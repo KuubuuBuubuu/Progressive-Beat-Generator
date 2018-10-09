@@ -26,3 +26,4 @@
 # 4. Roep de juiste functie aan om de samples af te spelen met de juiste variabelen.
 # 5. Zorg voor een stop functie:
 # 6. hoi
+print("JA JE MOEDERJONHUH")
