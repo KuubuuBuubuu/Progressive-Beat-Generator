@@ -1,37 +1,13 @@
-# -----Functionaliteiten----- #
-# hij moet drie samples inladen, uit een lijst. deze zijn genaamd low mid en high;
-# het moet via de console interactief zijn: de sample, maatsoort, en randomheid moet per object gekozen worden;
-# De bpm moet ook random gekozen kunnen worden
-# Voor regelmaat, moeten de eerste drie samples bestaan uit low high mid, elk een kwartnoot na elkaar;
-# het console moet vragen of je wilt dat hij random een nieuw maatsoort elk maat kiest, of dat het een vaste waarde is;
-# De random samplelengtes hebben een waarde van 0.125, 0.2, 0.25, 0.333, 0.5, of 0.75 kwartnoten;
-
-# user input (bpm, samplekeuze, maatsoort, vraag voor vast of random maatsoort)
-# bpm
-# ritme genereren
-# stop mogelijkheid
-#
-# beat afspelen
-# midi exporteren
-# locatie voor opslaan bepalen
-# sample koppelen aan noot
-#
-# ritme omzetten naar midi
-#
-# -----stappenplan----- #
-# 1. Defineer een class, met alle opties in __init__ die je wilt aanroepen (bpm, random/vast ritme [y/n], gegeven ritme, ritme>midi [y/n], lijst met samples, play, pause)
-# 2. defineer zowel een functie die elke maat van maatsoort kan veranderen, evenals een functie met een aan te geven vaste maatsoort
-#    definieer ook debug functies die print of je de juiste variabelen hebt.
-# 3. vraag de gebruiker om alle variabelen.
-# 4. Roep de juiste functie aan om de samples af te spelen met de juiste variabelen.
-# 5. Debugging
-# 5. Zorg voor een stop functie:
 # ---------- Imports ----------#
 import simpleaudio as sa
 import time, os, fnmatch, sys, random
+from midiutil import MIDIFile
+from pynput import keyboard
+import threading
+
 # ---------- Classes ---------- #
 class userInput:
-    def __init__(self, bpm, low, mid, high, choice, sig, exp):
+    def __init__(self, bpm, low, mid, high, choice, sig, exp, keepPlaying):
         self.bpm = bpm
         self.low = low
         self.mid = mid
@@ -39,86 +15,40 @@ class userInput:
         self.choice = choice
         self.sig = sig
         self.exp = exp
+        self.keepPlaying = keepPlaying
 
     def randomSeq(self):
-            notes16th = [2, 2, 2]
-            while True:
-                if sum(notes16th) > sig:
-                    notes16th.pop()
-                    if sum(notes16th) < sig -5:
-                        notes16th.append(random.randint(1, 4))
-                    break
-                else:
-                    notes16th.append(random.randint(1, 4))
-            print(notes16th, "is the note durations")
-            durationsToTimestamps16th(notes16th)
-            realTimeStamps(timestamps16th, bpm)
-            # retrieve first timestamp
-            # NOTE: pop(0) returns and removes the element at index 0
-            timestamp = timestamps.pop(0)
-            # retrieve the startime: current time
-            startTime = time.time()
-            keepPlaying = True
-            samNum = 0
-            # play the sequence
-            while keepPlaying:
-                # retrieve current time
-                currentTime = time.time()
-                # check if the timestamp's time is passed
-                if(currentTime - startTime >= timestamp):
-                    # play sample
-                    if samNum == 0:
-                        lowPlay.play()
-                        samNum=samNum+1
-                        timestamp = timestamps.pop(0)
-                    elif samNum ==1:
-                        highPlay.play()
-                        samNum=samNum+1
-                        timestamp = timestamps.pop(0)
-                    elif samNum == 2:
-                        midPlay.play()
-                        samNum=samNum+1
-                        timestamp = timestamps.pop(0)
-                    else:
-                        samples[random.randint(0,1)].play()
-                        print("playing sample at %s seconds." %(currentTime-startTime))
-
-                    # if there are timestamps left in the timestamps list
-                        if timestamps:
-                        # retrieve the next timestamp
-                            timestamp = timestamps.pop(0)
-                        else:
-
-                            # list is empty, stop loop
-                            keepPlaying = False
-                else:
-                    # wait for a very short moment
-                        time.sleep(0.001)
-
-
-    def staticSeq(self):
+        global timestampsBuffer
+        sig = random.randint(9,19)
+        timestamps = []                                                                                 # create a list to hold the timestamps
+        timestamps16th = []                                                                             # create a list for 16th notes with a starting position
+        sigSum = 0
+        sigSum = sigSum + sig
         notes16th = [2, 2, 2]
-
-        samNum = 0
         while True:
             if sum(notes16th) > sig:
                 notes16th.pop()
                 if sum(notes16th) < sig -5:
-                    notes16th.append(random.randint(1, 4))
+                    notes16th.append(random.randint(1, 2))
                 break
             else:
-                notes16th.append(random.randint(2, 4))
-        print(notes16th, "is the note durations")
-        durationsToTimestamps16th(notes16th)
-        realTimeStamps(timestamps16th, bpm)
+                notes16th.append(random.randint(1, 2))
+        for value in notes16th:
+            if timestamps16th==[]:
+                timestamps16th.append(0)
+            else:
+                timestamps16th.append(max(timestamps16th) + value)
+        timestampsBuffer = timestamps16th
+        for timestamp in timestamps16th:
+            timestamps.append(timestamp * ((60 / bpm) / 4.0))
         # retrieve first timestamp
         # NOTE: pop(0) returns and removes the element at index 0
         timestamp = timestamps.pop(0)
         # retrieve the startime: current time
         startTime = time.time()
-        keepPlaying = True
+        samNum = 0
         # play the sequence
-        while keepPlaying:
+        while keepPlaying==True:
             # retrieve current time
             currentTime = time.time()
             # check if the timestamp's time is passed
@@ -126,88 +56,231 @@ class userInput:
                 # play sample
                 if samNum == 0:
                     lowPlay.play()
-                    print("playing sample at %s seconds." %(round((currentTime-startTime), 2)))
                     samNum=samNum+1
+                    noteValues.append(32)
                     timestamp = timestamps.pop(0)
                 elif samNum ==1:
                     highPlay.play()
-                    print("playing sample at %s seconds." %(round((currentTime-startTime), 2)))
                     samNum=samNum+1
+                    noteValues.append(35)
                     timestamp = timestamps.pop(0)
                 elif samNum == 2:
                     midPlay.play()
-                    print("playing sample at %s seconds." %(round((currentTime-startTime), 2)))
                     samNum=samNum+1
+                    noteValues.append(34)
                     timestamp = timestamps.pop(0)
                 else:
-                    samples[random.randint(0,1)].play()
-                    print("playing sample at %s seconds." %(round((currentTime-startTime), 2)))
-
+                    SamplePlay()
                 # if there are timestamps left in the timestamps list
                     if timestamps:
                     # retrieve the next timestamp
                         timestamp = timestamps.pop(0)
                     else:
-
-                        # list is empty, stop loop
-                        samples[random.randint(0,1)].play()
-                        keepPlaying = False
+                        time.sleep(((60 / bpm) / 4.0))
+                        print(timestampsBuffer)
+                        sig = random.randint(9,19)
+                        notes16th = [2, 2, 2]
+                        timestamps16th=[]
+                        timestamps=[]
+                        while True:
+                            if sum(notes16th) > sig:
+                                notes16th.pop()
+                                if sum(notes16th) < sig -5:
+                                    notes16th.append(random.randint(1, 2))
+                                break
+                            else:
+                                notes16th.append(random.randint(1, 2))
+                            if sum(notes16th) == sig:
+                                notes16th.pop()
+                                break
+                        for value in notes16th:
+                            if timestamps16th==[]:
+                                timestamps16th.append(0)
+                            else:
+                                timestamps16th.append(max(timestamps16th) + value)
+                        for x in timestamps16th:
+                            timestampsBuffer.append(x + sigSum)
+                        for timestamp in timestamps16th:
+                            timestamps.append(timestamp * ((60 / bpm) / 4.0))
+                        timestamp = timestamps.pop(0)
+                        startTime = time.time()
+                        samNum = 0
+                        sigSum = sigSum + sig
             else:
                 # wait for a very short moment
-                    time.sleep(0.001)
-    def debug(self):
-        print("The BPM is: %d" % (self.bpm))
-        print("The low sample is: %s" % (self.low))
-        print("The mid sample is: %s" % (self.mid))
-        print("The high sample is: %s" % (self.high))
-        if self.choice == True:
-            print ("You've chosen to have a changing signature.")
-        elif self.choice == False:
-            print ("You've chosen to have a static signature.")
-        print("The signature you've chosen is: %s/16" % (self.sig))
-        print("the file will be exported as: %s" % (self.exp))
+                time.sleep(0.001)
+
+    def staticSeq(self):
+        global timestampsBuffer
+        timestamps = []                                                                                 # create a list to hold the timestamps
+        timestamps16th = []                                                                             # create a list for 16th notes with a starting position
+        sigSum = 0
+        sigSum = sigSum + sig
+        notes16th = [2, 2, 2]
+        while True:
+            if sum(notes16th) > sig:
+                notes16th.pop()
+                if sum(notes16th) < sig -5:
+                    notes16th.append(random.randint(1, 2))
+                break
+            else:
+                notes16th.append(random.randint(1, 2))
+        for value in notes16th:
+            if timestamps16th==[]:
+                timestamps16th.append(0)
+            else:
+                timestamps16th.append(max(timestamps16th) + value)
+        timestampsBuffer = timestamps16th
+        for timestamp in timestamps16th:
+            timestamps.append(timestamp * ((60 / bpm) / 4.0))
+        # retrieve first timestamp
+        # NOTE: pop(0) returns and removes the element at index 0
+        timestamp = timestamps.pop(0)
+        # retrieve the startime: current time
+        startTime = time.time()
+        samNum = 0
+        # play the sequence
+        while keepPlaying==True:
+            # retrieve current time
+            currentTime = time.time()
+            # check if the timestamp's time is passed
+            if(currentTime - startTime >= timestamp):
+                # play sample
+                if samNum == 0:
+                    lowPlay.play()
+                    samNum=samNum+1
+                    noteValues.append(32)
+                    timestamp = timestamps.pop(0)
+                elif samNum ==1:
+                    highPlay.play()
+                    samNum=samNum+1
+                    noteValues.append(35)
+                    timestamp = timestamps.pop(0)
+                elif samNum == 2:
+                    midPlay.play()
+                    samNum=samNum+1
+                    noteValues.append(34)
+                    timestamp = timestamps.pop(0)
+                else:
+                    SamplePlay()
+                # if there are timestamps left in the timestamps list
+                    if timestamps:
+                    # retrieve the next timestamp
+                        timestamp = timestamps.pop(0)
+                    else:
+                        time.sleep(((60 / bpm) / 4.0))
+                        print(timestampsBuffer)
+                        notes16th = [2, 2, 2]
+                        timestamps16th=[]
+                        timestamps=[]
+                        while True:
+                            if sum(notes16th) > sig:
+                                notes16th.pop()
+                                if sum(notes16th) < sig -5:
+                                    notes16th.append(random.randint(1, 2))
+                                break
+                            else:
+                                notes16th.append(random.randint(1, 2))
+                            if sum(notes16th) == sig:
+                                notes16th.pop()
+                                break
+                        for value in notes16th:
+                            if timestamps16th==[]:
+                                timestamps16th.append(0)
+                            else:
+                                timestamps16th.append(max(timestamps16th) + value)
+                        for x in timestamps16th:
+                            timestampsBuffer.append(x + sigSum)
+                        for timestamp in timestamps16th:
+                            timestamps.append(timestamp * ((60 / bpm) / 4.0))
+                        timestamp = timestamps.pop(0)
+                        startTime = time.time()
+                        samNum = 0
+                        sigSum = sigSum + sig
+            else:
+                # wait for a very short moment
+                time.sleep(0.001)
 
 # ---------- Initialization ----------#
 audioFiles = []
 listOfFiles = os.listdir('./Samples')
 pattern = "*.wav"
+pause = False
 for entry in listOfFiles:
     if fnmatch.fnmatch(entry, pattern):
         audioFiles.append(entry)
-
-# define durationsToTimestamps16th
-def durationsToTimestamps16th(l1):
-    for value in l1:
-        if timestamps16th==[]:
-            timestamps16th.append(0)
-        else:
-            timestamps16th.append(max(timestamps16th) + value)
-    print(timestamps16th, "is the timestamps in 16th.")
-
-# define timestampsin16th to timestampsintime
-def realTimeStamps(l1, int):
-    for timestamp in l1:
-        timestamps.append(timestamp * ((60 / int) / 4.0))
-    print(timestamps, "is the timestamps in real time.")
-
-# ---------- Variables ----------#
-# set the bpm of the beat generator:
 bpm = 120
-while True:
-    try:
-        ask = input("The current BPM is %s beats per minute. would you like to change it? [Y/N] " %(bpm)).lower()
-        if ask == "y":
-            bpm = int(input("Please fill in what BPM you would like. "))
-            break
-        elif ask == "n":
-            break
-        else:
-            print("That's not a yes or a no. Please use Y or N as your answer.")
-            print()
-    except:
-        print() #safecheck
+channel = 0
+pitch = 0
+PitchOut = 32 + pitch
+volume = 127
+keepPlaying = True
+noteValues = []
+mf = MIDIFile(1)                       #Name library
+track = 0                               #Create track
 
-# list all files, choose which samples go to the 'low', 'mid', and 'high' sampleslots:
+def thread1 ():
+  if p1.choice == 'random':
+      p1.randomSeq()
+  elif p1.choice == 'static':
+      p1.staticSeq()
+
+def thread2 ():
+    with keyboard.Listener(
+          on_press=on_press,
+          on_release=on_release) as listener:
+      listener.join()
+
+def on_press(key):
+    try:
+        global keepPlaying
+        keepPlaying = False
+        print(timestampsBuffer)
+        for pos, val in zip(timestampsBuffer, noteValues):
+            mf.addNote(track, channel, val, pos/4.0, 0.125, volume)
+        with open("output.mid", 'wb') as outf:
+            mf.writeFile(outf)
+        print("The sequencer has been stopped. Your midi file has been created. Have a nice day! :)")
+        time.sleep(2)
+        return False
+    except AttributeError:
+        print()
+
+def on_release(key):
+    if key == keyboard.Key.esc:
+        # Stop listener
+        return False
+
+def SamplePlay():
+    pitch = random.randint(0,2)
+    PitchOut = 32 + pitch
+    if pitch == 0:
+        lowPlay.play()
+        noteValues.append(32)
+    elif pitch == 1:
+        midPlay.play()
+        noteValues.append(34)
+    elif pitch == 2:
+        highPlay.play()
+        noteValues.append(35)
+
+# ---------- userInput Variables ----------#
+while True:
+    ask = input("The current BPM is %s beats per minute. would you like to change it? [Y/N] " %(bpm)).lower()
+    if ask == "y":
+        while True:
+            try:
+                bpm = int(input("Please fill in what BPM you would like. "))
+                break
+            except ValueError:
+                print("That's no value, silly goose.")
+    elif ask == "n":
+        break
+    else:
+        print("That's not a yes or a no. Please use Y or N as your answer.")
+        print()
+    break
+
 for file in audioFiles:
     print(file)
 while True:
@@ -221,6 +294,7 @@ while True:
     except FileNotFoundError:
         print("ERROR: There's no such file in the directory. please use one of the filenames from the list above.")
         print()
+
 while True:
     try:
         mid = input("What sample should the mid slot be? ")
@@ -232,6 +306,7 @@ while True:
     except FileNotFoundError:
         print("ERROR: There's no such file in the directory. please use one of the filenames from the list above.")
         print()
+
 while True:
     try:
         high = input("What sample should the high slot be? ")
@@ -250,21 +325,19 @@ while True:
         sig = int(input("Please fill in how many 16th notes you want as your signature."))
         break
     elif choice == "random":
-        sig = random.randint(18, 32)
+        sig = random.randint(9,19)
         break
     else:
         print("That's not a yes or a no. Please use Y or N as your answer.")
         print()
-timestamps = []                                                                                 # create a list to hold the timestamps
-timestamps16th = []                                                                             # create a list for 16th notes with a starting position
-fullTimeStamps = []
+
 samples = [lowPlay, midPlay, highPlay]
 exp = "poep.mid"
-rep = input("How many times do you want your sequence to be repeated? ")
-p1 = userInput(bpm, low, mid, high, choice, sig, exp)
+p1 = userInput(bpm, low, mid, high, choice, sig, exp, keepPlaying)
 
-# ---------- Player starts ----------#
-if p1.choice == 'random':
-        p1.randomSeq()
-else:
-    p1.staticSeq()
+# ---------- Thread1 starts ----------#
+
+t1 = threading.Thread(target=thread1, args=[])
+t2 = threading.Thread(target=thread2, args=[])
+t1.start()
+t2.start()
